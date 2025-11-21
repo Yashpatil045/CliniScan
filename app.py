@@ -84,7 +84,7 @@ def load_efficientnet_model():
 def load_yolo_model():
     """Load YOLOv8 model"""
     try:
-        model_path = "yolov8_model.pt"
+        model_path = "yoloV8.pt"
         if not os.path.exists(model_path):
             st.error(f"Model file not found: {model_path}")
             return None
