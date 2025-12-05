@@ -1,12 +1,12 @@
 setuptools
 wheel
 streamlit==1.52.0
-opencv-python-headless>=4.7.0
-ultralytics==8.3.235
-pandas
 numpy
+pandas
 scikit-learn
 xgboost
 joblib
 matplotlib
-torch 
+opencv-python-headless>=4.7.0
+ultralytics==8.3.235
+shap
