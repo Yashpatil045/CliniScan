@@ -10,15 +10,17 @@ import pickle
 
 # --- lazy ultralytics import so app doesn't crash in environments without libGL ---
 def try_import_ultralytics():
+    """
+    Try to import ultralytics.YOLO lazily.
+    Returns tuple (YOLO_class_or_None, error_message_or_None).
+    Does NOT call Streamlit UI functions (safe for cached callers).
+    """
     try:
         from ultralytics import YOLO as _YOLO
-        return _YOLO
+        return _YOLO, None
     except Exception as e:
-        # Do NOT crash the app — just disable YOLO features
-        st.warning("Ultralytics/YOLO not available in this environment — object-detection disabled.")
-        st.debug(f"Ultralytics import error: {e}")
-        return None
-
+        # return repr of exception so caller can decide how to report it
+        return None, repr(e)
 
 # Force CPU mode for all operations (disable CUDA)
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -93,19 +95,24 @@ def load_efficientnet_model():
 
 @st.cache_resource
 def load_yolo_model():
-    YOLO = try_import_ultralytics()
+    """
+    Load YOLOv8 model lazily. Returns YOLO model or None on failure.
+    This function will display a short user-friendly message when YOLO isn't available.
+    """
+    YOLO, import_err = try_import_ultralytics()
     if YOLO is None:
-        return None
+        # Don't raise; return None and let UI show detailed info
+        return None, import_err
+
     model_path = "yoloV8.pt"
     if not os.path.exists(model_path):
-        st.error(f"YOLO model file not found: {model_path}")
-        return None
+        return None, f"Model file not found: {model_path}"
+
     try:
-        return YOLO(model_path)
+        model = YOLO(model_path)
+        return model, None
     except Exception as e:
-        st.error(f"Error loading YOLO model: {e}")
-        st.debug(e)
-        return None
+        return None, repr(e)
 
 def preprocess_image_for_classification(image):
     """Preprocess image for EfficientNet model"""
@@ -292,39 +299,49 @@ def main():
             
             if st.button("Run YOLOv8 Detection", type="primary"):
                 with st.spinner("Loading model and running inference..."):
-                    model = load_yolo_model()
-                    if model is not None:
+                    yolo_model, yolo_err = load_yolo_model()   # unpack tuple (model, error)
+
+                    if yolo_model is None:
+                        st.info("YOLO/Ultralytics is not available in this environment. Object-detection disabled.")
+                        # show error details in an expander for debugging (safe)
+                        if yolo_err:
+                            with st.expander("Why YOLO failed to load (details)"):
+                                st.write(yolo_err)
+                    else:
                         # Run prediction
-                        annotated_image, detections = predict_yolo(model, image)
-                        
+                        annotated_image, detections = predict_yolo(yolo_model, image)
+
                         if annotated_image is not None:
                             st.success("✅ Detection completed!")
-                            
+
                             # Display annotated image
                             st.subheader("🎯 Detection Results")
                             st.image(annotated_image, caption="Annotated Image with Detections", use_container_width=True)
-                            
+
                             # Display detection information
                             if detections:
                                 st.subheader("📋 Detected Objects")
-                                
+
                                 # Filter by confidence threshold
-                                filtered_detections = [d for d in detections if d['confidence'] >= conf_threshold]
-                                
+                                filtered_detections = [
+                                    d for d in detections
+                                    if (d.get('confidence') is not None and d['confidence'] >= conf_threshold)
+                                ]
+
                                 if filtered_detections:
                                     # Create a table
                                     det_df = pd.DataFrame(filtered_detections)
                                     det_df['confidence'] = det_df['confidence'].apply(lambda x: f"{x:.2%}")
                                     st.dataframe(det_df[['class', 'confidence']], use_container_width=True)
-                                    
+
                                     # Show statistics
                                     st.metric("Total Detections", len(filtered_detections))
                                 else:
                                     st.info(f"No detections found above confidence threshold of {conf_threshold:.2%}")
                             else:
                                 st.info("No objects detected in the image.")
-    else:
-        st.info("👆 Please upload an image file to get started.")
+                        else:
+                            st.info("Detection failed or returned no annotated image.")
         
         # Show example usage
         st.markdown("---")
