@@ -9,12 +9,13 @@ xgboost
 joblib
 matplotlib
 
-# headless opencv (important)
+# HEADLESS OpenCV — must be present and pinned BEFORE ultralytics
 opencv-python-headless==4.11.0.86
 
-# ultralytics (optional) — keep if you need it, but headless must be present
+# ultralytics (optional)
 ultralytics==8.3.235
 
 torch
 torchvision
+
 shap
