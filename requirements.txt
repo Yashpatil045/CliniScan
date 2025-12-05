@@ -1,12 +1,20 @@
 setuptools
 wheel
-streamlit
+streamlit==1.52.0
+
 numpy
 pandas
 scikit-learn
 xgboost
 joblib
 matplotlib
-opencv-python-headless
-ultralytics
+
+# headless opencv (important)
+opencv-python-headless==4.11.0.86
+
+# ultralytics (optional) — keep if you need it, but headless must be present
+ultralytics==8.3.235
+
+torch
+torchvision
 shap
