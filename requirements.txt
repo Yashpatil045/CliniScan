@@ -17,5 +17,5 @@ ultralytics==8.3.235
 
 torch
 torchvision
-
+dill
 shap
