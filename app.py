@@ -3,11 +3,22 @@ import torch
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
-from ultralytics import YOLO
 import pandas as pd
 import io
 import os
 import pickle
+
+# --- lazy ultralytics import so app doesn't crash in environments without libGL ---
+def try_import_ultralytics():
+    try:
+        from ultralytics import YOLO as _YOLO
+        return _YOLO
+    except Exception as e:
+        # Do NOT crash the app — just disable YOLO features
+        st.warning("Ultralytics/YOLO not available in this environment — object-detection disabled.")
+        st.debug(f"Ultralytics import error: {e}")
+        return None
+
 
 # Force CPU mode for all operations (disable CUDA)
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -82,17 +93,18 @@ def load_efficientnet_model():
 
 @st.cache_resource
 def load_yolo_model():
-    """Load YOLOv8 model"""
+    YOLO = try_import_ultralytics()
+    if YOLO is None:
+        return None
+    model_path = "yoloV8.pt"
+    if not os.path.exists(model_path):
+        st.error(f"YOLO model file not found: {model_path}")
+        return None
     try:
-        model_path = "yoloV8.pt"
-        if not os.path.exists(model_path):
-            st.error(f"Model file not found: {model_path}")
-            return None
-        
-        model = YOLO(model_path)
-        return model
+        return YOLO(model_path)
     except Exception as e:
-        st.error(f"Error loading YOLOv8 model: {str(e)}")
+        st.error(f"Error loading YOLO model: {e}")
+        st.debug(e)
         return None
 
 def preprocess_image_for_classification(image):
